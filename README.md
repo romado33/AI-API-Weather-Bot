@@ -1,33 +1,63 @@
-# 🌤️ AI-Powered Weather Chatbot
+# 🌤️ AI Weather Chatbot
 
-This is an interactive, AI-powered weather chatbot that delivers **real-time forecasts** with **custom emotional tones and detail levels**. Built in Python using OpenWeatherMap, Hugging Face Transformers, and Gradio — and runs entirely inside Google Colab.
+An interactive chatbot that gives personalized, real-time weather forecasts with your choice of tone and detail — powered by OpenWeatherMap, Hugging Face Transformers, and Gradio.
 
-## 🧠 Features
+---
 
-- 🌍 **City Selection** – Users can input any city worldwide
-- 😄 **Emotional Tone Options** – Choose from warm, sarcastic, dramatic, scientific, etc.
-- 📆 **Forecast Range** – Get weather for today, 3-day, or 7-day forecast
-- 📏 **Detail Level** – Choose between brief, standard, or detailed responses
-- 🤖 **LLM-Powered Chat** – Friendly, natural-sounding replies from small transformer models like `falcon-rw-1b` or `flan-t5-base`
-  
+## 🚀 Live Demo
 
-## 🛠 Tech Stack
+👉 Try it on [Hugging Face Spaces](https://huggingface.co/spaces/YOUR_USERNAME/weather-chatbot)  
+🎯 Built with: `flan-t5-base`, Gradio UI, OpenWeatherMap API
 
-| Component        | Description                                    |
-|------------------|------------------------------------------------|
-| `Gradio`         | Interactive UI (dropdowns, textboxes, etc.)    |
-| `Transformers`   | LLMs for generating conversational output      |
-| `OpenWeatherMap` | Real-time weather data                         |
-| `Google Colab`   | Free cloud runtime + GPU support               |
+---
 
-## 📦 Installation & Setup
+## Features
 
-1. Open the [Colab notebook](https://colab.research.google.com/github/yourusername/weather-chatbot-ai/blob/main/weather_chatbot.ipynb)
-2. Set your OpenWeatherMap API key:
-   ```python
-   from google.colab import userdata
-   userdata.set_secret('OPENWEATHERMAP_API_KEY')
-Run all cells and interact with the chatbot through the Gradio interface
+- 🌍 **City selection**
+- 🤖 **LLM-generated responses** (choose tone: warm, sarcastic, scientific…)
+- 📅 **Forecast options** (today, 3-day, 7-day)
+- 📏 **Detail control** (brief, standard, detailed)
+- 💬 **Chat history with memory**
+
+---
+
+## Screenshots
+
+> Add a screenshot like this:
 
 
+yaml
+Copy
+Edit
+
+---
+
+## Setup
+
+To run locally or in a Space:
+
+1. Create an `.env` variable on Hugging Face with your OpenWeatherMap key:
+   - Name: `OPENWEATHERMAP_API_KEY`
+2. Install dependencies:
+pip install -r requirements.txt
+
+markdown
+Copy
+Edit
+3. Run the app:
+python app.py
+
+yaml
+Copy
+Edit
+
+---
+
+## Credits
+
+Created by [Rob Dods](https://www.https://www.linkedin.com/in/rob-dods/) 
+Weather data: [OpenWeatherMap](https://openweathermap.org/)  
+Language model: [`google/flan-t5-base`](https://huggingface.co/google/flan-t5-base)
+
+---
 
