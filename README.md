@@ -9,11 +9,7 @@ This is an interactive, AI-powered weather chatbot that delivers **real-time for
 - 📆 **Forecast Range** – Get weather for today, 3-day, or 7-day forecast
 - 📏 **Detail Level** – Choose between brief, standard, or detailed responses
 - 🤖 **LLM-Powered Chat** – Friendly, natural-sounding replies from small transformer models like `falcon-rw-1b` or `flan-t5-base`
-
-## 🚀 Try It Live
-
-- 👉 [Open in Google Colab](https://colab.research.google.com/github/yourusername/weather-chatbot-ai/blob/main/weather_chatbot.ipynb)
-- 🗺️ Shareable via Gradio public link (temporary during Colab session)
+  
 
 ## 🛠 Tech Stack
 
@@ -33,7 +29,5 @@ This is an interactive, AI-powered weather chatbot that delivers **real-time for
    userdata.set_secret('OPENWEATHERMAP_API_KEY')
 Run all cells and interact with the chatbot through the Gradio interface
 
-
-Built by Rob Dods
 
 
