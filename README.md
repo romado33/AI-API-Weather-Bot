@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🌤️ AI Weather Chatbot
 
 An interactive chatbot that gives personalized, real-time weather forecasts with your choice of tone and detail — powered by OpenWeatherMap, Hugging Face Transformers, and Gradio.
@@ -42,3 +43,17 @@ Language model: [`google/flan-t5-base`](https://huggingface.co/google/flan-t5-ba
 
 ---
 
+=======
+---
+title: AI Interact With PDF Resume
+emoji: 📊
+colorFrom: green
+colorTo: gray
+sdk: gradio
+sdk_version: 5.37.0
+app_file: app.py
+pinned: false
+---
+
+Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+>>>>>>> 863e3e846dbd52fb44ae564dc0c588c587fb3c61
