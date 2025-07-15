@@ -21,11 +21,6 @@ An interactive chatbot that gives personalized, real-time weather forecasts with
 
 ---
 
-## Screenshots
-
-> Add a screenshot like this:
-
-
 yaml
 Copy
 Edit
@@ -55,7 +50,7 @@ Edit
 
 ## Credits
 
-Created by [Rob Dods](https://www.https://www.linkedin.com/in/rob-dods/) 
+Created by [Rob Dods](https://www.linkedin.com/in/rob-dods/) 
 Weather data: [OpenWeatherMap](https://openweathermap.org/)  
 Language model: [`google/flan-t5-base`](https://huggingface.co/google/flan-t5-base)
 
