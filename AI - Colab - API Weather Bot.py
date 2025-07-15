@@ -1,20 +1,21 @@
-# --- Install required libraries ---
-!pip install transformers accelerate requests --quiet
+# --- Install needed libraries ---
+!pip install transformers accelerate requests gradio --quiet
 
 # --- Imports ---
 from transformers import pipeline
 import requests
 import re
-from google.colab import userdata
 import torch
+import gradio as gr
+from google.colab import userdata
 
-# --- Get API key from Colab secrets ---
-OPENWEATHERMAP_API_KEY = userdata.get('OPENWEATHER_API_KEY')  # Set this via userdata.set_secret
+# --- Get weather API key ---
+OPENWEATHERMAP_API_KEY = userdata.get("OPENWEATHER_API_KEY")
 
-# --- Choose device (GPU if available) ---
+# --- Use GPU if available ---
 device = 0 if torch.cuda.is_available() else -1
 
-# --- Load an instruction-tuned conversational model ---
+# --- Load conversational model (Falcon) ---
 chatbot = pipeline(
     "text-generation",
     model="tiiuae/falcon-7b-instruct",
@@ -22,14 +23,7 @@ chatbot = pipeline(
     trust_remote_code=True
 )
 
-# --- Extract city name from input using regex ---
-def extract_city(user_input):
-    match = re.search(r"in ([A-Z][a-zA-Z]+(?: [A-Z][a-zA-Z]+)*)", user_input)
-    if match:
-        return match.group(1)
-    return "Ottawa"
-
-# --- Fetch weather data from OpenWeatherMap ---
+# --- Weather fetcher ---
 def get_weather(city):
     try:
         url = (
@@ -46,18 +40,16 @@ def get_weather(city):
         temp = data['main']['temp']
         feels_like = data['main']['feels_like']
         return f"{description}, {temp}°C (feels like {feels_like}°C)"
-
     except Exception as e:
         return f"Weather fetch error: {e}"
 
-# --- Generate a helpful chatbot reply ---
-def chat(user_input):
-    city = extract_city(user_input)
+# --- Chat logic ---
+def chat(city, emotion):
+    city = city.strip() or "Ottawa"
     weather = get_weather(city)
     prompt = (
-        f"The user asked: '{user_input}'\n"
         f"The weather in {city} is: {weather}.\n"
-        f"Respond in a warm, helpful tone."
+        f"Respond in a {emotion} tone."
     )
 
     response = chatbot(
@@ -67,10 +59,22 @@ def chat(user_input):
         top_p=0.95,
         top_k=40,
         do_sample=True
-    )[0]['generated_text']
+    )[0]["generated_text"]
 
-    # Trim output to just the new response (remove original prompt)
     return response[len(prompt):].strip()
 
-# --- Try it out ---
-print(chat("What’s the weather like in Ottawa today?"))
+# --- Gradio Interface ---
+with gr.Blocks() as demo:
+    gr.Markdown("## 🌦️ Ask About the Weather with a Chosen Emotion")
+    city_input = gr.Textbox(label="Enter a City", placeholder="e.g., Ottawa")
+    emotion_input = gr.Dropdown(
+        ["warm", "cheerful", "reassuring", "sarcastic", "dramatic", "scientific", "humorous"],
+        label="Choose Response Emotion",
+        value="warm"
+    )
+    output = gr.Textbox(label="Chatbot Response", lines=3)
+    submit_btn = gr.Button("Submit")
+
+    submit_btn.click(fn=chat, inputs=[city_input, emotion_input], outputs=output)
+
+demo.launch()
