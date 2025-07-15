@@ -36,7 +36,7 @@ python app.py
 
 ## Credits
 
-Created by [Rob Dods](https://www.linkedin.com/in/rob-dods/) 
+Created by [Rob Dods](https://www.linkedin.com/in/rob-dods/  
 Weather data: [OpenWeatherMap](https://openweathermap.org/)  
 Language model: [`google/flan-t5-base`](https://huggingface.co/google/flan-t5-base)
 
