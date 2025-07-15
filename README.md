@@ -1,35 +1,36 @@
-# AI---Colab---API-Weather-Bot# 🌤️ AI-Powered Weather Chatbot
+# 🌤️ AI-Powered Weather Chatbot
 
-This is an interactive, AI-powered weather chatbot that gives you **personalized, real-time weather reports** — in a tone you choose!
+This is an interactive, AI-powered weather chatbot that delivers **real-time forecasts** with **custom emotional tones and detail levels**. Built in Python using OpenWeatherMap, Hugging Face Transformers, and Gradio — and runs entirely inside Google Colab.
 
-## 🧠 What it does
+## 🧠 Features
 
-- Asks the user to input:
-  - A city name
-  - A tone/emotion (warm, sarcastic, scientific, etc.)
-  - A forecast range (today / 3-day / 7-day)
-  - A level of detail (brief / standard / detailed)
-- Fetches real-time weather data from [OpenWeatherMap](https://openweathermap.org/)
-- Uses a conversational LLM (like Falcon-RW-1B or FLAN-T5) to generate a custom chatbot-style response
-- Built entirely in Python, using Gradio and Hugging Face Transformers
+- 🌍 **City Selection** – Users can input any city worldwide
+- 😄 **Emotional Tone Options** – Choose from warm, sarcastic, dramatic, scientific, etc.
+- 📆 **Forecast Range** – Get weather for today, 3-day, or 7-day forecast
+- 📏 **Detail Level** – Choose between brief, standard, or detailed responses
+- 🤖 **LLM-Powered Chat** – Friendly, natural-sounding replies from small transformer models like `falcon-rw-1b` or `flan-t5-base`
 
-## 🔗 Live Demo
+## 🚀 Try It Live
 
-👉 [Open in Google Colab](https://colab.research.google.com/github/yourusername/weather-chatbot-ai/blob/main/weather_chatbot.ipynb)
+- 👉 [Open in Google Colab](https://colab.research.google.com/github/yourusername/weather-chatbot-ai/blob/main/weather_chatbot.ipynb)
+- 🗺️ Shareable via Gradio public link (temporary during Colab session)
 
 ## 🛠 Tech Stack
 
-- [Gradio](https://www.gradio.app/) – for the interactive web UI
-- [Transformers](https://huggingface.co/docs/transformers/index) – for text generation
-- [OpenWeatherMap API](https://openweathermap.org/api) – for live weather data
-- [Google Colab](https://colab.research.google.com/) – for free, hosted execution
+| Component        | Description                                    |
+|------------------|------------------------------------------------|
+| `Gradio`         | Interactive UI (dropdowns, textboxes, etc.)    |
+| `Transformers`   | LLMs for generating conversational output      |
+| `OpenWeatherMap` | Real-time weather data                         |
+| `Google Colab`   | Free cloud runtime + GPU support               |
 
-## ⚙️ Setup
+## 📦 Installation & Setup
 
-1. Clone the repo or open the notebook in Colab
-2. Set your OpenWeatherMap API key using:
+1. Open the [Colab notebook](https://colab.research.google.com/github/yourusername/weather-chatbot-ai/blob/main/weather_chatbot.ipynb)
+2. Set your OpenWeatherMap API key:
    ```python
    from google.colab import userdata
    userdata.set_secret('OPENWEATHERMAP_API_KEY')
+Run all cells and interact with the chatbot through the Gradio interface
 
 
