@@ -34,3 +34,6 @@ This is an interactive, AI-powered weather chatbot that delivers **real-time for
 Run all cells and interact with the chatbot through the Gradio interface
 
 
+Built by Rob Dods
+
+
