@@ -6,7 +6,7 @@ An interactive chatbot that gives personalized, real-time weather forecasts with
 
 ## 🚀 Live Demo
 
-👉 Try it on [Hugging Face Spaces](https://huggingface.co/spaces/YOUR_USERNAME/weather-chatbot)  
+👉 Try it on [Hugging Face Spaces](https://huggingface.co/spaces/romado33/AI_API_Weather_Bot)
 🎯 Built with: `flan-t5-base`, Gradio UI, OpenWeatherMap API
 
 ---
@@ -36,7 +36,7 @@ python app.py
 
 ## Credits
 
-Created by [Rob Dods](https://www.linkedin.com/in/rob-dods/  
+Created by [Rob Dods](https://www.linkedin.com/in/rob-dods/)
 Weather data: [OpenWeatherMap](https://openweathermap.org/)  
 Language model: [`google/flan-t5-base`](https://huggingface.co/google/flan-t5-base)
 
