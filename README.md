@@ -21,12 +21,6 @@ An interactive chatbot that gives personalized, real-time weather forecasts with
 
 ---
 
-yaml
-Copy
-Edit
-
----
-
 ## Setup
 
 To run locally or in a Space:
@@ -35,16 +29,8 @@ To run locally or in a Space:
    - Name: `OPENWEATHERMAP_API_KEY`
 2. Install dependencies:
 pip install -r requirements.txt
-
-markdown
-Copy
-Edit
 3. Run the app:
 python app.py
-
-yaml
-Copy
-Edit
 
 ---
 
