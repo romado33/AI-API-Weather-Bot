@@ -229,6 +229,11 @@ class WeatherAPI:
     def __init__(self):
         self.session = None
     
+    def __del__(self):
+        """Clean up session on deletion"""
+        if self.session:
+            asyncio.create_task(self.session.close())
+    
     @lru_cache(maxsize=ZeroGPUConfig.MAX_CACHE_SIZE)
     def get_weather(self, city: str) -> Dict:
         """Get weather data with caching"""
@@ -241,7 +246,73 @@ class WeatherAPI:
     async def _get_weather_async(self, city: str) -> Dict:
         """Async weather fetch"""
         city = self._validate_city(city)
-        return self._get_demo_data(city)  # Use demo for now
+        
+        # Check if we have a real API key
+        if ZeroGPUConfig.OPENWEATHER_API_KEY == "demo_key":
+            return self._get_demo_data(city)
+        
+        try:
+            # Use OpenWeatherMap API
+            api_key = ZeroGPUConfig.OPENWEATHER_API_KEY
+            base_url = "http://api.openweathermap.org/data/2.5/weather"
+            
+            if self.session is None:
+                self.session = aiohttp.ClientSession()
+            
+            params = {
+                'q': city,
+                'appid': api_key,
+                'units': 'metric'  # Get Celsius by default
+            }
+            
+            async with self.session.get(base_url, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    
+                    # Convert OpenWeatherMap format to our format with enhanced details
+                    weather_data = {
+                        'city': data['name'],
+                        'country': data['sys']['country'],
+                        'current': {
+                            'temp_c': round(data['main']['temp']),
+                            'feels_like_c': round(data['main']['feels_like']),
+                            'temp_min_c': round(data['main']['temp_min']),
+                            'temp_max_c': round(data['main']['temp_max']),
+                            'humidity': data['main']['humidity'],
+                            'pressure': data['main']['pressure'],
+                            'wind_kph': round(data['wind']['speed'] * 3.6),  # m/s to km/h
+                            'wind_direction': data['wind'].get('deg', 0),
+                            'wind_gust_kph': round(data['wind'].get('gust', 0) * 3.6) if 'gust' in data['wind'] else None,
+                            'condition': data['weather'][0]['main'],
+                            'description': data['weather'][0]['description'],
+                            'visibility_km': round(data.get('visibility', 10000) / 1000, 1),  # m to km
+                            'clouds_percent': data['clouds']['all'],
+                            'sunrise': datetime.fromtimestamp(data['sys']['sunrise']).strftime('%H:%M'),
+                            'sunset': datetime.fromtimestamp(data['sys']['sunset']).strftime('%H:%M'),
+                            'icon': data['weather'][0]['icon'],
+                            'icon_url': f"http://openweathermap.org/img/wn/{data['weather'][0]['icon']}@2x.png",
+                            'uv': 5  # OpenWeatherMap doesn't provide UV in basic API
+                        }
+                    }
+                    
+                    # Add rain/snow data if present
+                    if 'rain' in data:
+                        weather_data['current']['rain_1h'] = data['rain'].get('1h', 0)
+                        weather_data['current']['rain_3h'] = data['rain'].get('3h', 0)
+                    if 'snow' in data:
+                        weather_data['current']['snow_1h'] = data['snow'].get('1h', 0)
+                        weather_data['current']['snow_3h'] = data['snow'].get('3h', 0)
+                    
+                    print(f"✅ Real weather data fetched for {city}")
+                    return weather_data
+                    
+                else:
+                    print(f"Weather API error: {response.status} - {await response.text()}")
+                    return self._get_demo_data(city)
+                    
+        except Exception as e:
+            print(f"Error fetching real weather: {e}")
+            return self._get_demo_data(city)
     
     def _validate_city(self, city: str) -> str:
         if not city or not city.strip():
@@ -250,24 +321,38 @@ class WeatherAPI:
         return clean_city if re.match(r"^[a-zA-Z\s\-\.,']{2,}$", clean_city) else "Ottawa"
     
     def _get_demo_data(self, city: str) -> Dict:
-        """Character-friendly demo data with variety"""
+        """Character-friendly demo data with variety - matches real API structure"""
         # Summer conditions for July (Northern Hemisphere)
         summer_conditions = [
-            "Sunny", "Partly Cloudy", "Mostly Sunny", "Clear", 
-            "Scattered Clouds", "Light Rain", "Thunderstorms", 
-            "Hot and Humid", "Warm", "Perfect Summer Day"
+            ("Clear", "clear sky"),
+            ("Clouds", "scattered clouds"),
+            ("Clouds", "overcast clouds"),
+            ("Rain", "light rain"),
+            ("Rain", "moderate rain"),
+            ("Thunderstorm", "thunderstorm with rain"),
+            ("Mist", "mist"),
+            ("Haze", "haze")
         ]
         
         # July temperatures (realistic for summer)
         base_temp = random.randint(22, 32)  # 22-32°C for summer
-        condition = random.choice(summer_conditions)
+        condition, description = random.choice(summer_conditions)
         
         # Add some dramatic summer weather occasionally
         if random.random() < 0.3:  # 30% chance of dramatic weather
-            dramatic_conditions = ["Thunderstorms", "Heavy Rain", "Very Hot", "Heat Wave"]
-            condition = random.choice(dramatic_conditions)
-            if "Hot" in condition or "Heat" in condition:
+            dramatic_conditions = [
+                ("Thunderstorm", "heavy thunderstorm"),
+                ("Rain", "heavy intensity rain"),
+                ("Clear", "clear sky"),  # Very hot clear day
+                ("Extreme", "extreme heat")
+            ]
+            condition, description = random.choice(dramatic_conditions)
+            if "heat" in description or condition == "Clear":
                 base_temp = random.randint(33, 40)
+        
+        current_time = datetime.now()
+        sunrise = current_time.replace(hour=6, minute=15)
+        sunset = current_time.replace(hour=20, minute=30)
         
         current_data = {
             'city': city,
@@ -275,13 +360,28 @@ class WeatherAPI:
             'current': {
                 'temp_c': base_temp,
                 'feels_like_c': base_temp + random.randint(-2, 5),
+                'temp_min_c': base_temp - random.randint(2, 5),
+                'temp_max_c': base_temp + random.randint(2, 5),
                 'humidity': random.randint(40, 85),
+                'pressure': random.randint(1005, 1025),
                 'wind_kph': random.randint(5, 25),
+                'wind_direction': random.randint(0, 360),
+                'wind_gust_kph': random.randint(10, 35) if random.random() > 0.5 else None,
                 'condition': condition,
-                'uv': random.randint(6, 11),  # Higher UV for summer
-                'description': self._get_weather_description(condition, base_temp)
+                'description': description,
+                'visibility_km': round(random.uniform(5, 10), 1),
+                'clouds_percent': random.randint(0, 100),
+                'sunrise': sunrise.strftime('%H:%M'),
+                'sunset': sunset.strftime('%H:%M'),
+                'icon': '01d',  # Default sunny icon
+                'icon_url': 'http://openweathermap.org/img/wn/01d@2x.png',
+                'uv': random.randint(6, 11)  # Higher UV for summer
             }
         }
+        
+        # Add rain data for rainy conditions
+        if "rain" in description.lower():
+            current_data['current']['rain_1h'] = round(random.uniform(0.5, 5.0), 1)
         
         return current_data
     
@@ -382,20 +482,56 @@ class CharacterResponseGenerator:
         
         current = weather_data.get('current', {})
         condition = current.get('condition', 'Unknown')
+        description = current.get('description', condition).lower()
         temp = convert_temp(current.get('temp_c', 'Unknown'))
         feels_like = convert_temp(current.get('feels_like_c', temp))
         wind = current.get('wind_kph', 0)
         humidity = current.get('humidity', 50)
+        pressure = current.get('pressure', 1013)
+        visibility = current.get('visibility_km', 10)
+        clouds = current.get('clouds_percent', 0)
         
-        context = f"The weather today is {condition} with a temperature of {temp}{unit_symbol}"
+        # Build comprehensive weather context
+        context = f"The weather is {description} with a temperature of {temp}{unit_symbol}"
+        
         if abs(int(feels_like) - int(temp)) > 3:
             context += f" (feels like {feels_like}{unit_symbol})"
-        if wind > 20:
+        
+        # Add wind details
+        if wind > 30:
             context += f" with strong winds at {wind} km/h"
+            if current.get('wind_gust_kph'):
+                context += f" gusting to {current['wind_gust_kph']} km/h"
+        elif wind > 15:
+            context += f" with moderate winds at {wind} km/h"
+        
+        # Add atmospheric conditions
         if humidity > 80:
-            context += " and quite humid"
+            context += f", very humid at {humidity}%"
         elif humidity < 30:
-            context += " and very dry"
+            context += f", very dry at {humidity}%"
+        
+        # Add visibility if poor
+        if visibility < 5:
+            context += f", visibility is poor at {visibility}km"
+        
+        # Add cloud cover
+        if clouds > 80:
+            context += ", completely overcast"
+        elif clouds > 50:
+            context += ", mostly cloudy"
+        
+        # Add precipitation if present
+        if 'rain_1h' in current and current['rain_1h'] > 0:
+            context += f", {current['rain_1h']}mm of rain in the last hour"
+        if 'snow_1h' in current and current['snow_1h'] > 0:
+            context += f", {current['snow_1h']}mm of snow in the last hour"
+        
+        # Add pressure trend
+        if pressure > 1020:
+            context += ", high pressure system"
+        elif pressure < 1000:
+            context += ", low pressure system"
             
         return context
     
@@ -834,13 +970,13 @@ def create_character_weather_interface():
                 if success:
                     return f"""
                     <div style="background: linear-gradient(90deg, #00BCD4, #2196F3); color: white; padding: 15px; border-radius: 10px; margin: 15px 0; text-align: center; font-weight: bold;">
-                        🎬 Character AI Ready! • {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU Mode'} • Demo Weather Data (Summer 2025) ✅
+                        🎬 Character AI Ready! • {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU Mode'} • OpenWeatherMap API Connected ✅
                     </div>
                     """
                 else:
                     return f"""
                     <div style="background: linear-gradient(90deg, #FF5722, #F44336); color: white; padding: 15px; border-radius: 10px; margin: 15px 0; text-align: center; font-weight: bold;">
-                        🎬 Fallback Mode • {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU Mode'} • Using preset character responses & demo weather ⚠️
+                        🎬 Fallback Mode • {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU Mode'} • Using preset responses ⚠️
                     </div>
                     """
                     
