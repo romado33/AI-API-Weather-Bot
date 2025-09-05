@@ -12,8 +12,9 @@ import requests
 
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
 
-# Mapping from UI temperature choices to OpenWeather API units
-TEMP_UNIT_TO_API = {"Celsius": "metric", "Fahrenheit": "imperial"}
+# Mapping of display temperature units to OpenWeather "units" parameter.
+UNITS_MAP = {"Celsius": "metric", "Fahrenheit": "imperial"}
+
 
 CHARACTER_TEMPLATES = {
     "Napoleon Dynamite": lambda txt: f"Gosh. {txt} This is like the worst. Idiot.",
@@ -86,8 +87,7 @@ def fetch_forecast_data(
             hourly, daily = [], []
         return hourly, daily, current, True
 
-    # Convert the user-facing unit string to the API's expected value.
-    units = TEMP_UNIT_TO_API.get(temp_unit, "metric")
+    units = UNITS_MAP.get(temp_unit, "metric")
 
     try:
         geo_res = requests.get(
@@ -141,7 +141,6 @@ def fetch_forecast_data(
 
     def to_c(temp: float) -> int:
         """Convert temperature to Celsius if API returned Fahrenheit."""
-
         return round((temp - 32) * 5 / 9) if units == "imperial" else round(temp)
 
     hourly = [
@@ -228,7 +227,6 @@ def create_daily_forecast_chart(daily_forecast: List[Dict[str, str]], temp_unit:
     return fig
 
 
-
 def generate_character_response(
     city: str,
     forecast_range: str,
@@ -262,15 +260,13 @@ def generate_character_response(
     else:
         lines = []
 
-    report = city_intro + ("\\n" + " ".join(lines) if lines else "")
+    report = city_intro + ("\n" + " ".join(lines) if lines else "")
     return CHARACTER_TEMPLATES.get(character, lambda x: x)(report)
 
 
-
 def character_weather_chat(history, city, character, forecast_range, temp_unit, session_id):
-    hourly_data, daily_data, current_data, is_demo = fetch_forecast_data(
-        city, temp_unit, forecast_range
-    )
+    hourly_data, daily_data, current_data, is_demo = fetch_forecast_data(city, temp_unit, forecast_range)
+
     response = generate_character_response(
         city, forecast_range, character, hourly_data, daily_data, current_data, temp_unit
     )
@@ -333,5 +329,4 @@ with gr.Blocks(title="🎬 Character Weather Forecast") as demo:
 
 
 if __name__ == "__main__":
-    demo.launch()
-
+    demo.launch
