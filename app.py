@@ -48,12 +48,19 @@ def _random_forecast() -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
     return hourly, daily
 
 
-def fetch_forecast_data(city: str) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
-    """Fetch real forecast data from OpenWeatherMap or fall back to random values."""
+def fetch_forecast_data(city: str) -> Tuple[List[Dict[str, str]], List[Dict[str, str]], bool]:
+    """Fetch forecast data and indicate whether it's real or demo.
+
+    Returns:
+        Tuple containing hourly data, daily data and a boolean flag indicating
+        whether the values are randomly generated (True) or fetched from the
+        API (False).
+    """
 
     city = city.strip()
     if not city or not OPENWEATHER_API_KEY:
-        return _random_forecast()
+        hourly, daily = _random_forecast()
+        return hourly, daily, True
 
     try:
         geo_res = requests.get(
@@ -64,7 +71,8 @@ def fetch_forecast_data(city: str) -> Tuple[List[Dict[str, str]], List[Dict[str,
         geo_res.raise_for_status()
         coords = geo_res.json()
         if not coords:
-            return _random_forecast()
+            hourly, daily = _random_forecast()
+            return hourly, daily, True
         lat, lon = coords[0]["lat"], coords[0]["lon"]
 
         weather_res = requests.get(
@@ -81,7 +89,8 @@ def fetch_forecast_data(city: str) -> Tuple[List[Dict[str, str]], List[Dict[str,
         weather_res.raise_for_status()
         data = weather_res.json()
     except (requests.RequestException, ValueError):
-        return _random_forecast()
+        hourly, daily = _random_forecast()
+        return hourly, daily, True
 
     hourly = [
         {
@@ -98,7 +107,7 @@ def fetch_forecast_data(city: str) -> Tuple[List[Dict[str, str]], List[Dict[str,
         }
         for d in data.get("daily", [])[:5]
     ]
-    return hourly, daily
+    return hourly, daily, False
 
 
 def create_hourly_forecast_chart(hourly_forecast: List[Dict[str, str]]) -> go.Figure:
@@ -145,12 +154,14 @@ def generate_character_response(
 
 
 def character_weather_chat(history, city, character, forecast_range, temp_unit, session_id):
-    hourly_data, daily_data = fetch_forecast_data(city)
+    hourly_data, daily_data, is_demo = fetch_forecast_data(city)
     response = generate_character_response(city, forecast_range, character, hourly_data, daily_data)
+    warning = "Using demo data; set OPENWEATHER_API_KEY for live weather" if is_demo else ""
+    full_response = response + ("\n\n" + warning if warning else "")
     user_query = f"{character or 'Character'} - Weather for {city}"
     new_history = history or []
     new_history.append({"role": "user", "content": user_query})
-    new_history.append({"role": "assistant", "content": response})
+    new_history.append({"role": "assistant", "content": full_response})
 
     if forecast_range == "Hourly" and hourly_data:
         chart = create_hourly_forecast_chart(hourly_data)
