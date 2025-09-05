@@ -12,6 +12,9 @@ import requests
 
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
 
+# Mapping of display temperature units to OpenWeather "units" parameter.
+UNITS_MAP = {"Celsius": "metric", "Fahrenheit": "imperial"}
+
 CHARACTER_TEMPLATES = {
     "Napoleon Dynamite": lambda txt: f"Gosh. {txt} This is like the worst. Idiot.",
     "Colonel Nathan Jessup": lambda txt: f"You want the forecast? YOU CAN'T HANDLE THE WEATHER! {txt}",
@@ -75,7 +78,7 @@ def fetch_forecast_data(
         hourly, daily, current = _random_forecast()
         return hourly, daily, current, True
 
-    units = "metric" if temp_unit == "Celsius" else "imperial"
+    units = UNITS_MAP.get(temp_unit, "metric")
 
     try:
         geo_res = requests.get(
@@ -236,7 +239,7 @@ def generate_character_response(
 
 
 def character_weather_chat(history, city, character, forecast_range, temp_unit, session_id):
-    hourly_data, daily_data, current_data, is_demo = fetch_forecast_data(city, temp_unit)
+    hourly_data, daily_data, current_data, is_demo = fetch_forecast_data(city, temp_unit=temp_unit)
     response = generate_character_response(
         city, forecast_range, character, hourly_data, daily_data, current_data, temp_unit
     )
