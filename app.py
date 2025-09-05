@@ -54,8 +54,15 @@ def _random_forecast() -> Tuple[List[Dict[str, str]], List[Dict[str, str]], Dict
     return hourly, daily, current
 
 
-def fetch_forecast_data(city: str) -> Tuple[List[Dict[str, str]], List[Dict[str, str]], Dict[str, str], bool]:
+def fetch_forecast_data(
+    city: str, temp_unit: str
+) -> Tuple[List[Dict[str, str]], List[Dict[str, str]], Dict[str, str], bool]:
     """Fetch forecast data and indicate whether it's real or demo.
+
+    Args:
+        city: Name of the city to look up.
+        temp_unit: "Celsius" or "Fahrenheit" to control the units used when
+            querying the OpenWeather API.
 
     Returns:
         Tuple containing hourly data, daily data, current conditions and a
@@ -67,6 +74,8 @@ def fetch_forecast_data(city: str) -> Tuple[List[Dict[str, str]], List[Dict[str,
     if not city or not OPENWEATHER_API_KEY:
         hourly, daily, current = _random_forecast()
         return hourly, daily, current, True
+
+    units = "metric" if temp_unit == "Celsius" else "imperial"
 
     try:
         geo_res = requests.get(
@@ -87,7 +96,7 @@ def fetch_forecast_data(city: str) -> Tuple[List[Dict[str, str]], List[Dict[str,
                 "lat": lat,
                 "lon": lon,
                 "exclude": "minutely,alerts",
-                "units": "metric",
+                "units": units,
                 "appid": OPENWEATHER_API_KEY,
             },
             timeout=10,
@@ -98,23 +107,28 @@ def fetch_forecast_data(city: str) -> Tuple[List[Dict[str, str]], List[Dict[str,
         hourly, daily, current = _random_forecast()
         return hourly, daily, current, True
 
+    def to_c(temp: float) -> int:
+        """Convert temperature to Celsius if API returned Fahrenheit."""
+
+        return round((temp - 32) * 5 / 9) if units == "imperial" else round(temp)
+
     hourly = [
         {
             "time": datetime.fromtimestamp(h["dt"]).strftime("%H:%M"),
-            "temp_c": round(h["temp"]),
+            "temp_c": to_c(h["temp"]),
         }
         for h in data.get("hourly", [])[:12]
     ]
     daily = [
         {
             "date": datetime.fromtimestamp(d["dt"]).strftime("%Y-%m-%d"),
-            "max_temp_c": round(d["temp"]["max"]),
-            "min_temp_c": round(d["temp"]["min"]),
+            "max_temp_c": to_c(d["temp"]["max"]),
+            "min_temp_c": to_c(d["temp"]["min"]),
         }
         for d in data.get("daily", [])[:5]
     ]
     current = {
-        "temp_c": round(data.get("current", {}).get("temp", 0)),
+        "temp_c": to_c(data.get("current", {}).get("temp", 0)),
         "description": data.get("current", {})
         .get("weather", [{}])[0]
         .get("description", "")
@@ -123,12 +137,16 @@ def fetch_forecast_data(city: str) -> Tuple[List[Dict[str, str]], List[Dict[str,
     return hourly, daily, current, False
 
 
-def create_current_conditions_chart(current: Dict[str, str]) -> go.Figure:
+def create_current_conditions_chart(current: Dict[str, str], temp_unit: str) -> go.Figure:
     """Create a simple chart summarizing current conditions."""
 
+    def convert(temp: int) -> int:
+        return round(temp * 9 / 5 + 32) if temp_unit == "Fahrenheit" else temp
+
+    unit_symbol = "F" if temp_unit == "Fahrenheit" else "C"
     fig = go.Figure()
     fig.add_annotation(
-        text=f"{current['temp_c']}°C - {current['description']}",
+        text=f"{convert(current['temp_c'])}°{unit_symbol} - {current['description']}",
         x=0.5,
         y=0.5,
         showarrow=False,
@@ -142,24 +160,41 @@ def create_current_conditions_chart(current: Dict[str, str]) -> go.Figure:
     return fig
 
 
-def create_hourly_forecast_chart(hourly_forecast: List[Dict[str, str]]) -> go.Figure:
+def create_hourly_forecast_chart(hourly_forecast: List[Dict[str, str]], temp_unit: str) -> go.Figure:
+    def convert(temp: int) -> int:
+        return round(temp * 9 / 5 + 32) if temp_unit == "Fahrenheit" else temp
+
     times = [h["time"] for h in hourly_forecast]
-    temps = [h["temp_c"] for h in hourly_forecast]
+    temps = [convert(h["temp_c"]) for h in hourly_forecast]
+    y_label = "Temp (F)" if temp_unit == "Fahrenheit" else "Temp (C)"
+
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=times, y=temps, mode="lines+markers", name="Temp", line=dict(color="royalblue")))
-    fig.update_layout(title="Hourly Forecast", xaxis_title="Time", yaxis_title="Temp (C)", height=400)
+    fig.add_trace(
+        go.Scatter(x=times, y=temps, mode="lines+markers", name="Temp", line=dict(color="royalblue"))
+    )
+    fig.update_layout(title="Hourly Forecast", xaxis_title="Time", yaxis_title=y_label, height=400)
     return fig
 
 
-def create_daily_forecast_chart(daily_forecast: List[Dict[str, str]]) -> go.Figure:
+def create_daily_forecast_chart(daily_forecast: List[Dict[str, str]], temp_unit: str) -> go.Figure:
+    def convert(temp: int) -> int:
+        return round(temp * 9 / 5 + 32) if temp_unit == "Fahrenheit" else temp
+
     dates = [d["date"] for d in daily_forecast]
-    max_temps = [d["max_temp_c"] for d in daily_forecast]
-    min_temps = [d["min_temp_c"] for d in daily_forecast]
+    max_temps = [convert(d["max_temp_c"]) for d in daily_forecast]
+    min_temps = [convert(d["min_temp_c"]) for d in daily_forecast]
+    y_label = "Temp (F)" if temp_unit == "Fahrenheit" else "Temp (C)"
+
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=dates, y=max_temps, name="Max", mode="lines+markers", line=dict(color="red")))
-    fig.add_trace(go.Scatter(x=dates, y=min_temps, name="Min", mode="lines+markers", line=dict(color="blue")))
-    fig.update_layout(title="5-Day Forecast", xaxis_title="Date", yaxis_title="Temp (C)", height=400)
+    fig.add_trace(
+        go.Scatter(x=dates, y=max_temps, name="Max", mode="lines+markers", line=dict(color="red"))
+    )
+    fig.add_trace(
+        go.Scatter(x=dates, y=min_temps, name="Min", mode="lines+markers", line=dict(color="blue"))
+    )
+    fig.update_layout(title="5-Day Forecast", xaxis_title="Date", yaxis_title=y_label, height=400)
     return fig
+
 
 
 def generate_character_response(
@@ -169,30 +204,42 @@ def generate_character_response(
     hourly_data: List[Dict[str, str]] | None = None,
     daily_data: List[Dict[str, str]] | None = None,
     current_data: Dict[str, str] | None = None,
+    temp_unit: str = "Celsius",
 ) -> str:
     """Create a character-styled weather report."""
+
+    def convert(temp: int) -> int:
+        return round(temp * 9 / 5 + 32) if temp_unit == "Fahrenheit" else temp
+
+    unit_symbol = "F" if temp_unit == "Fahrenheit" else "C"
 
     city_intro = f"The weather in {city}..."
     if forecast_range == "Today" and current_data:
         lines = [
-            f"Currently {current_data['temp_c']}°C with {current_data['description'].lower()}."
+            f"Currently {convert(current_data['temp_c'])}°{unit_symbol} with {current_data['description'].lower()}."
         ]
     elif forecast_range == "Hourly" and hourly_data:
-        lines = [f"At {h['time']}, it's {h['temp_c']}°C." for h in hourly_data]
+        lines = [
+            f"At {h['time']}, it's {convert(h['temp_c'])}°{unit_symbol}." for h in hourly_data
+        ]
     elif forecast_range == "5-Day" and daily_data:
         lines = [
-            f"{d['date']}: High {d['max_temp_c']}°C / Low {d['min_temp_c']}°C." for d in daily_data
+            f"{d['date']}: High {convert(d['max_temp_c'])}°{unit_symbol} / Low {convert(d['min_temp_c'])}°{unit_symbol}."
+            for d in daily_data
         ]
     else:
         lines = []
 
-    report = city_intro + ("\n" + " ".join(lines) if lines else "")
+    report = city_intro + ("\\n" + " ".join(lines) if lines else "")
     return CHARACTER_TEMPLATES.get(character, lambda x: x)(report)
 
 
+
 def character_weather_chat(history, city, character, forecast_range, temp_unit, session_id):
-    hourly_data, daily_data, current_data, is_demo = fetch_forecast_data(city)
-    response = generate_character_response(city, forecast_range, character, hourly_data, daily_data, current_data)
+    hourly_data, daily_data, current_data, is_demo = fetch_forecast_data(city, temp_unit)
+    response = generate_character_response(
+        city, forecast_range, character, hourly_data, daily_data, current_data, temp_unit
+    )
     warning = "Using demo data; set OPENWEATHER_API_KEY for live weather" if is_demo else ""
     full_response = response + ("\n\n" + warning if warning else "")
     user_query = f"{character or 'Character'} - Weather for {city}"
@@ -201,11 +248,11 @@ def character_weather_chat(history, city, character, forecast_range, temp_unit, 
     new_history.append({"role": "assistant", "content": full_response})
 
     if forecast_range == "Today" and current_data:
-        chart = create_current_conditions_chart(current_data)
+        chart = create_current_conditions_chart(current_data, temp_unit)
     elif forecast_range == "Hourly" and hourly_data:
-        chart = create_hourly_forecast_chart(hourly_data)
+        chart = create_hourly_forecast_chart(hourly_data, temp_unit)
     elif forecast_range == "5-Day" and daily_data:
-        chart = create_daily_forecast_chart(daily_data)
+        chart = create_daily_forecast_chart(daily_data, temp_unit)
     else:
         chart = None
 
