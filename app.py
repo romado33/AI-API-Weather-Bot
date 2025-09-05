@@ -26,7 +26,7 @@ CHARACTER_TEMPLATES = {
 }
 
 
-def _random_forecast() -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
+def _random_forecast() -> Tuple[List[Dict[str, str]], List[Dict[str, str]], Dict[str, str]]:
     """Return random forecast data when the real API is unavailable."""
 
     now = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
@@ -45,22 +45,28 @@ def _random_forecast() -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
         }
         for i in range(5)
     ]
-    return hourly, daily
+    current = {
+        "temp_c": random.randint(-10, 35),
+        "description": random.choice(
+            ["Clear skies", "Cloudy", "Light rain", "Snow", "Windy"]
+        ),
+    }
+    return hourly, daily, current
 
 
-def fetch_forecast_data(city: str) -> Tuple[List[Dict[str, str]], List[Dict[str, str]], bool]:
+def fetch_forecast_data(city: str) -> Tuple[List[Dict[str, str]], List[Dict[str, str]], Dict[str, str], bool]:
     """Fetch forecast data and indicate whether it's real or demo.
 
     Returns:
-        Tuple containing hourly data, daily data and a boolean flag indicating
-        whether the values are randomly generated (True) or fetched from the
-        API (False).
+        Tuple containing hourly data, daily data, current conditions and a
+        boolean flag indicating whether the values are randomly generated
+        (True) or fetched from the API (False).
     """
 
     city = city.strip()
     if not city or not OPENWEATHER_API_KEY:
-        hourly, daily = _random_forecast()
-        return hourly, daily, True
+        hourly, daily, current = _random_forecast()
+        return hourly, daily, current, True
 
     try:
         geo_res = requests.get(
@@ -71,8 +77,8 @@ def fetch_forecast_data(city: str) -> Tuple[List[Dict[str, str]], List[Dict[str,
         geo_res.raise_for_status()
         coords = geo_res.json()
         if not coords:
-            hourly, daily = _random_forecast()
-            return hourly, daily, True
+            hourly, daily, current = _random_forecast()
+            return hourly, daily, current, True
         lat, lon = coords[0]["lat"], coords[0]["lon"]
 
         weather_res = requests.get(
@@ -89,8 +95,8 @@ def fetch_forecast_data(city: str) -> Tuple[List[Dict[str, str]], List[Dict[str,
         weather_res.raise_for_status()
         data = weather_res.json()
     except (requests.RequestException, ValueError):
-        hourly, daily = _random_forecast()
-        return hourly, daily, True
+        hourly, daily, current = _random_forecast()
+        return hourly, daily, current, True
 
     hourly = [
         {
@@ -107,7 +113,33 @@ def fetch_forecast_data(city: str) -> Tuple[List[Dict[str, str]], List[Dict[str,
         }
         for d in data.get("daily", [])[:5]
     ]
-    return hourly, daily, False
+    current = {
+        "temp_c": round(data.get("current", {}).get("temp", 0)),
+        "description": data.get("current", {})
+        .get("weather", [{}])[0]
+        .get("description", "")
+        .title(),
+    }
+    return hourly, daily, current, False
+
+
+def create_current_conditions_chart(current: Dict[str, str]) -> go.Figure:
+    """Create a simple chart summarizing current conditions."""
+
+    fig = go.Figure()
+    fig.add_annotation(
+        text=f"{current['temp_c']}°C - {current['description']}",
+        x=0.5,
+        y=0.5,
+        showarrow=False,
+        font=dict(size=24),
+        xref="paper",
+        yref="paper",
+    )
+    fig.update_layout(
+        title="Current Conditions", xaxis=dict(visible=False), yaxis=dict(visible=False), height=200
+    )
+    return fig
 
 
 def create_hourly_forecast_chart(hourly_forecast: List[Dict[str, str]]) -> go.Figure:
@@ -136,11 +168,16 @@ def generate_character_response(
     character: str,
     hourly_data: List[Dict[str, str]] | None = None,
     daily_data: List[Dict[str, str]] | None = None,
+    current_data: Dict[str, str] | None = None,
 ) -> str:
     """Create a character-styled weather report."""
 
     city_intro = f"The weather in {city}..."
-    if forecast_range == "Hourly" and hourly_data:
+    if forecast_range == "Today" and current_data:
+        lines = [
+            f"Currently {current_data['temp_c']}°C with {current_data['description'].lower()}."
+        ]
+    elif forecast_range == "Hourly" and hourly_data:
         lines = [f"At {h['time']}, it's {h['temp_c']}°C." for h in hourly_data]
     elif forecast_range == "5-Day" and daily_data:
         lines = [
@@ -154,8 +191,8 @@ def generate_character_response(
 
 
 def character_weather_chat(history, city, character, forecast_range, temp_unit, session_id):
-    hourly_data, daily_data, is_demo = fetch_forecast_data(city)
-    response = generate_character_response(city, forecast_range, character, hourly_data, daily_data)
+    hourly_data, daily_data, current_data, is_demo = fetch_forecast_data(city)
+    response = generate_character_response(city, forecast_range, character, hourly_data, daily_data, current_data)
     warning = "Using demo data; set OPENWEATHER_API_KEY for live weather" if is_demo else ""
     full_response = response + ("\n\n" + warning if warning else "")
     user_query = f"{character or 'Character'} - Weather for {city}"
@@ -163,7 +200,9 @@ def character_weather_chat(history, city, character, forecast_range, temp_unit, 
     new_history.append({"role": "user", "content": user_query})
     new_history.append({"role": "assistant", "content": full_response})
 
-    if forecast_range == "Hourly" and hourly_data:
+    if forecast_range == "Today" and current_data:
+        chart = create_current_conditions_chart(current_data)
+    elif forecast_range == "Hourly" and hourly_data:
         chart = create_hourly_forecast_chart(hourly_data)
     elif forecast_range == "5-Day" and daily_data:
         chart = create_daily_forecast_chart(daily_data)
