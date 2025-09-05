@@ -91,7 +91,7 @@ def fetch_forecast_data(
 
     try:
         geo_res = requests.get(
-            "http://api.openweathermap.org/geo/1.0/direct",
+            "https://api.openweathermap.org/geo/1.0/direct",
             params={"q": city, "limit": 1, "appid": OPENWEATHER_API_KEY},
             timeout=10,
         )
