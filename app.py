@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 import os
 import random
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 import gradio as gr
 import plotly.graph_objects as go
@@ -12,8 +12,9 @@ import requests
 
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
 
-# Mapping from UI temperature choices to OpenWeather API units
-TEMP_UNIT_TO_API = {"Celsius": "metric", "Fahrenheit": "imperial"}
+# Mapping of display temperature units to OpenWeather "units" parameter.
+UNITS_MAP = {"Celsius": "metric", "Fahrenheit": "imperial"}
+
 
 CHARACTER_TEMPLATES = {
     "Napoleon Dynamite": lambda txt: f"Gosh. {txt} This is like the worst. Idiot.",
@@ -87,12 +88,11 @@ def fetch_forecast_data(
             daily = daily[:1]
         return hourly, daily, current, True
 
-    # Convert the user-facing unit string to the API's expected value.
-    units = TEMP_UNIT_TO_API.get(temp_unit, "metric")
+    units = UNITS_MAP.get(temp_unit, "metric")
 
     try:
         geo_res = requests.get(
-            "http://api.openweathermap.org/geo/1.0/direct",
+            "https://api.openweathermap.org/geo/1.0/direct",
             params={"q": city, "limit": 1, "appid": OPENWEATHER_API_KEY},
             timeout=10,
         )
@@ -144,7 +144,6 @@ def fetch_forecast_data(
 
     def to_c(temp: float) -> int:
         """Convert temperature to Celsius if API returned Fahrenheit."""
-
         return round((temp - 32) * 5 / 9) if units == "imperial" else round(temp)
 
     hourly = [
@@ -241,7 +240,7 @@ def create_today_forecast_chart(today: Dict[str, str], temp_unit: str) -> go.Fig
     labels = ["High", "Low"]
     y_label = "Temp (F)" if temp_unit == "Fahrenheit" else "Temp (C)"
 
-    fig = go.Figure(data=[go.Bar(x=labels, y=temps, marker_color=["red", "blue"] )])
+    fig = go.Figure(data=[go.Bar(x=labels, y=temps, marker_color=["red", "blue"])])
     fig.update_layout(
         title=f"Today's Forecast ({today['date']})",
         yaxis_title=y_label,
@@ -250,14 +249,13 @@ def create_today_forecast_chart(today: Dict[str, str], temp_unit: str) -> go.Fig
     return fig
 
 
-
 def generate_character_response(
     city: str,
     forecast_range: str,
     character: str,
-    hourly_data: List[Dict[str, str]] | None = None,
-    daily_data: List[Dict[str, str]] | None = None,
-    current_data: Dict[str, str] | None = None,
+    hourly_data: Union[List[Dict[str, str]], None] = None,
+    daily_data: Union[List[Dict[str, str]], None] = None,
+    current_data: Union[Dict[str, str], None] = None,
     temp_unit: str = "Celsius",
 ) -> str:
     """Create a character-styled weather report."""
@@ -292,15 +290,13 @@ def generate_character_response(
     else:
         lines = []
 
-    report = city_intro + ("\\n" + " ".join(lines) if lines else "")
+    report = city_intro + ("\n" + " ".join(lines) if lines else "")
     return CHARACTER_TEMPLATES.get(character, lambda x: x)(report)
 
 
-
 def character_weather_chat(history, city, character, forecast_range, temp_unit, session_id):
-    hourly_data, daily_data, current_data, is_demo = fetch_forecast_data(
-        city, temp_unit, forecast_range
-    )
+    hourly_data, daily_data, current_data, is_demo = fetch_forecast_data(city, temp_unit, forecast_range)
+
     response = generate_character_response(
         city, forecast_range, character, hourly_data, daily_data, current_data, temp_unit
     )
@@ -369,4 +365,3 @@ with gr.Blocks(title="🎬 Character Weather Forecast") as demo:
 
 if __name__ == "__main__":
     demo.launch()
-
