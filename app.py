@@ -12,6 +12,9 @@ import requests
 
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY", "")
 
+# Mapping from UI temperature choices to OpenWeather API units
+TEMP_UNIT_TO_API = {"Celsius": "metric", "Fahrenheit": "imperial"}
+
 CHARACTER_TEMPLATES = {
     "Napoleon Dynamite": lambda txt: f"Gosh. {txt} This is like the worst. Idiot.",
     "Colonel Nathan Jessup": lambda txt: f"You want the forecast? YOU CAN'T HANDLE THE WEATHER! {txt}",
@@ -75,7 +78,8 @@ def fetch_forecast_data(
         hourly, daily, current = _random_forecast()
         return hourly, daily, current, True
 
-    units = "metric" if temp_unit == "Celsius" else "imperial"
+    # Convert the user-facing unit string to the API's expected value.
+    units = TEMP_UNIT_TO_API.get(temp_unit, "metric")
 
     try:
         geo_res = requests.get(
