@@ -58,7 +58,7 @@ def _random_forecast() -> Tuple[List[Dict[str, str]], List[Dict[str, str]], Dict
 
 
 def fetch_forecast_data(
-    city: str, temp_unit: str
+    city: str, temp_unit: str, forecast_range: str
 ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]], Dict[str, str], bool]:
     """Fetch forecast data and indicate whether it's real or demo.
 
@@ -66,6 +66,8 @@ def fetch_forecast_data(
         city: Name of the city to look up.
         temp_unit: "Celsius" or "Fahrenheit" to control the units used when
             querying the OpenWeather API.
+        forecast_range: "Today", "Hourly" or "5-Day" to control which parts
+            of the forecast are retrieved.
 
     Returns:
         Tuple containing hourly data, daily data, current conditions and a
@@ -76,6 +78,12 @@ def fetch_forecast_data(
     city = city.strip()
     if not city or not OPENWEATHER_API_KEY:
         hourly, daily, current = _random_forecast()
+        if forecast_range == "Hourly":
+            daily = []
+        elif forecast_range == "5-Day":
+            hourly = []
+        elif forecast_range == "Today":
+            hourly, daily = [], []
         return hourly, daily, current, True
 
     # Convert the user-facing unit string to the API's expected value.
@@ -91,15 +99,29 @@ def fetch_forecast_data(
         coords = geo_res.json()
         if not coords:
             hourly, daily, current = _random_forecast()
+            if forecast_range == "Hourly":
+                daily = []
+            elif forecast_range == "5-Day":
+                hourly = []
+            elif forecast_range == "Today":
+                hourly, daily = [], []
             return hourly, daily, current, True
         lat, lon = coords[0]["lat"], coords[0]["lon"]
+
+        exclude_parts = ["minutely", "alerts"]
+        if forecast_range == "Hourly":
+            exclude_parts.append("daily")
+        elif forecast_range == "5-Day":
+            exclude_parts.append("hourly")
+        elif forecast_range == "Today":
+            exclude_parts.extend(["hourly", "daily"])
 
         weather_res = requests.get(
             "https://api.openweathermap.org/data/2.5/onecall",
             params={
                 "lat": lat,
                 "lon": lon,
-                "exclude": "minutely,alerts",
+                "exclude": ",".join(exclude_parts),
                 "units": units,
                 "appid": OPENWEATHER_API_KEY,
             },
@@ -109,6 +131,12 @@ def fetch_forecast_data(
         data = weather_res.json()
     except (requests.RequestException, ValueError):
         hourly, daily, current = _random_forecast()
+        if forecast_range == "Hourly":
+            daily = []
+        elif forecast_range == "5-Day":
+            hourly = []
+        elif forecast_range == "Today":
+            hourly, daily = [], []
         return hourly, daily, current, True
 
     def to_c(temp: float) -> int:
@@ -240,7 +268,9 @@ def generate_character_response(
 
 
 def character_weather_chat(history, city, character, forecast_range, temp_unit, session_id):
-    hourly_data, daily_data, current_data, is_demo = fetch_forecast_data(city, temp_unit)
+    hourly_data, daily_data, current_data, is_demo = fetch_forecast_data(
+        city, temp_unit, forecast_range
+    )
     response = generate_character_response(
         city, forecast_range, character, hourly_data, daily_data, current_data, temp_unit
     )
